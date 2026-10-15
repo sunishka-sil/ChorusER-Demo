@@ -1,0 +1,1429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chorus ER - PE case, synced to video</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,500;0,6..12,700;0,6..12,800;1,6..12,400;1,6..12,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#fff7f4; --card:#fffdfc; --tint:#ffeded; --line:#f6bcbc; --line-soft:#ffdcdc;
+  --ink:#2e5668; --mute:#587789; --coral:#ff867c; --coral-d:#dc5247; --maroon:#2e5668;
+  --yellow:#ffeaac; --yellow-ink:#1f3f50; --track:#ffd5d5; --sage:#95ccc5; --sage-l:#ddf1ee; --sage-d:#287771;
+  --ehr-bg:#eceff3; --ehr-head:#3f6178; --ehr-line:#cdd5df; --ehr-ink:#1d2733; --ehr-mute:#5b6878;
+  --ehr-abn:#c0262d; --ehr-wild:#fff0a0;
+  --disp:"Nunito Sans","Segoe UI",system-ui,sans-serif;
+  --body:"Nunito Sans","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--cream);color:var(--ink);font:15px/1.45 var(--body);overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible{outline:2px solid var(--maroon);outline-offset:2px}
+.app{height:100vh;display:grid;grid-template-rows:auto auto minmax(0,1fr)}
+
+/* header + controls */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px 4px}
+.logo{font:800 30px var(--disp);color:var(--coral);letter-spacing:-.01em;text-shadow:2px 2px 0 var(--ink)}
+.sub{color:var(--mute);margin-left:16px;font-size:14px;font-style:italic}
+.tag{font-size:12.5px;font-weight:500;color:var(--ink);background:var(--yellow);border-radius:3px;padding:4px 14px;white-space:nowrap}
+.controls{display:flex;align-items:center;gap:16px;padding:8px 24px 14px}
+.play{width:46px;height:46px;border-radius:50%;background:var(--coral);display:grid;place-items:center;flex:none}
+.play svg{width:18px;height:18px;fill:var(--yellow-ink)}
+.clock{font:700 24px var(--disp);min-width:128px;white-space:nowrap}
+.clock .wall{font:500 13px var(--body);color:var(--mute);margin-left:8px}
+.scrub{position:relative;flex:1;height:36px;min-width:120px}
+.scrub input{-webkit-appearance:none;appearance:none;width:100%;height:36px;background:transparent;position:relative;z-index:2}
+.scrub input::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(to right,var(--coral) var(--p,0%),var(--track) var(--p,0%))}
+.scrub input::-moz-range-track{height:6px;border-radius:3px;background:var(--track)}
+.scrub input::-moz-range-progress{height:6px;border-radius:3px;background:var(--coral)}
+.scrub input::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--maroon);margin-top:-5px}
+.scrub input::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--maroon)}
+.ticks button{position:absolute;top:26px;width:10px;height:10px;border-radius:50%;background:var(--yellow);border:1.5px solid var(--maroon);transform:translateX(-50%);z-index:3}
+.ticks button:hover{transform:translateX(-50%) scale(1.4)}
+.speed{display:flex;background:var(--card);border:2px solid var(--line);border-radius:999px;padding:2px}
+.speed button{padding:3px 11px;border-radius:999px;font-size:13px;color:var(--mute)}
+.speed button.on{background:var(--tint);color:var(--ink);font-weight:700}
+.ghost{padding:5px 14px;border:2px solid var(--line);border-radius:999px;font-size:13px;color:var(--ink);font-weight:500}
+.ghost:hover{background:var(--tint)}
+.status{font-size:13px;color:var(--mute);white-space:nowrap}
+.status.done{color:var(--sage-d);font-weight:800}
+
+/* columns */
+.cols{display:grid;grid-template-columns:minmax(250px,.85fr) minmax(280px,1fr) minmax(470px,1.8fr);gap:14px;padding:0 24px 20px;min-height:0}
+.col{background:var(--card);border:2px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.colh{padding:12px 16px;border-bottom:2px solid var(--line-soft);display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.colh .n{font:700 13px var(--disp);color:#fff;background:var(--maroon);width:24px;height:24px;border-radius:5px;display:inline-grid;place-items:center;align-self:center}
+.colh h2{font:800 19px var(--disp);color:var(--ink)}
+.colh p{color:var(--mute);font-size:13px;font-style:italic}
+.scroll{flex:1;min-height:0;overflow:auto;padding:6px 16px 12px;scroll-behavior:smooth}
+.empty{color:var(--mute);font-style:italic;padding:14px 0}
+
+/* wearable lanes */
+.lanes{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-bottom:2px solid var(--line-soft)}
+.lane{display:flex;align-items:center;gap:8px;padding:4px 12px 4px 4px;border-radius:999px;background:var(--tint);border:1px solid transparent;font-size:13px;color:var(--mute);transition:border-color .2s,color .2s,box-shadow .2s}
+.lane .dot{width:26px;height:26px;border-radius:50%;background:var(--maroon);color:#fff;font:700 11px var(--disp);display:grid;place-items:center}
+.lane.mon .dot{background:var(--yellow);border:1.5px dashed var(--maroon);color:var(--yellow-ink)}
+.lane.on{color:var(--ink);font-weight:600;border-color:var(--coral);box-shadow:0 0 0 3px rgba(255,134,124,.3)}
+
+/* transcript + timeline */
+.line{display:grid;grid-template-columns:46px 38px 1fr;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.line .t,.tlist .t{font:800 13px var(--disp);color:var(--sage-d);padding-top:3px}
+.chip{font:700 11px var(--disp);background:var(--maroon);color:#fff;border-radius:999px;text-align:center;padding:3px 0;margin-top:2px}
+.chip.chipmon{background:var(--yellow);border:1px dashed var(--maroon);color:var(--yellow-ink)}
+.line p{font-size:15.5px}
+.line.mon p{color:var(--mute);font-style:italic}
+.tlist{list-style:none}
+.tlist li{display:grid;grid-template-columns:46px 1fr;gap:8px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:15px}
+.tlist b{font-weight:700}
+.gap{display:inline-block;font-style:normal;font-size:12.5px;font-weight:600;background:var(--yellow);color:var(--yellow-ink);border-radius:3px;padding:0 8px;margin-top:3px}
+.enter{animation:enterD 1.4s ease-out}
+@keyframes enterD{0%{background:rgba(149,204,197,.45)}100%{background:transparent}}
+
+/* pipeline card */
+.pipe{border-top:2px solid var(--line-soft);padding:12px 16px 14px;background:var(--tint)}
+.pipe h3{font:700 13px var(--disp);color:var(--mute);margin-bottom:8px}
+.ps{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:center;padding:6px 0;position:relative}
+.ps+.ps:before{content:"";position:absolute;left:14px;top:-8px;height:12px;border-left:2px solid var(--sage-d);opacity:.6}
+.pl{font-size:12.5px;color:var(--sage-d);font-weight:800}
+.pq{font-size:14.5px;font-style:italic}
+.wave{display:flex;align-items:center;gap:3px;height:28px}
+.wave i{display:block;width:4px;height:var(--h);background:var(--coral);border-radius:2px}
+.run .wave i{animation:wv .5s ease-in-out 3 alternate;animation-delay:var(--d)}
+@keyframes wv{from{transform:scaleY(.35)}to{transform:scaleY(1.15)}}
+.pwho{font-size:12.5px;color:var(--mute);margin-left:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.dchip{font-size:12.5px;border:1.5px solid var(--sage);border-radius:6px;padding:2px 8px;background:var(--card)}
+.dchip b{color:var(--sage-d);font-weight:700;margin-right:4px}
+.run .s1{animation:stp .3s ease-out both}
+.run .s2{animation:stp .3s ease-out .55s both}
+.run .s3{animation:stp .3s ease-out 1.1s both}
+@keyframes stp{from{opacity:.05}to{opacity:1}}
+
+/* deliver tabs */
+.tabs{display:flex;gap:4px;padding:10px 16px 0}
+.tab{position:relative;padding:7px 14px;border-radius:8px 8px 0 0;color:var(--mute);font-size:14px;font-weight:500;border:2px solid transparent;border-bottom:0}
+.tab.on{background:var(--tint);color:var(--ink);font-weight:700;border-color:var(--line)}
+.tab .dot{display:none;position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--coral);border:1.5px solid #fff}
+.tab.new .dot{display:block}
+.pane{display:none;flex:1;min-height:0;flex-direction:column;margin:-2px 16px 16px;border:2px solid var(--line);border-radius:0 8px 8px 8px;background:var(--tint);overflow:hidden}
+.pane.on{display:flex}
+.pane.pad{padding:18px;overflow:auto}
+
+/* EHR window (kept in its own neutral EHR styling) */
+.ehrwin{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--ehr-bg);color:var(--ehr-ink);font:13.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif}
+.ehr-title{background:var(--ink);color:#dfe8f3;padding:6px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px}
+.ehr-title label{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--yellow)}
+.banner{background:#fff;border-bottom:2px solid var(--ehr-head);padding:9px 14px}
+.pt-name{font-size:18px;font-weight:700;letter-spacing:.01em}
+.pt-name small{font-size:11.5px;font-weight:600;color:var(--yellow-ink);background:var(--yellow);border-radius:3px;padding:1px 6px;margin-left:8px;vertical-align:middle}
+.pt-meta{display:flex;flex-wrap:wrap;gap:2px 16px;color:var(--ehr-mute);font-size:12.5px;margin-top:2px}
+.pt-meta b{color:var(--ehr-ink);font-weight:600}
+.pt-flags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.fl{font-size:12px;font-weight:600;border-radius:3px;padding:1px 8px;background:#e5edf6;color:#264a73}
+.fl.ok{background:#dff1e4;color:#1a5c2e}
+.team{display:flex;flex-wrap:wrap;gap:2px 16px;margin-top:6px;font-size:12.5px;color:var(--ehr-mute)}
+.team b{color:var(--ehr-ink);font-weight:600}
+.enav{display:flex;gap:2px;background:#dfe5ec;border-bottom:1px solid var(--ehr-line);padding:4px 8px 0;overflow-x:auto}
+.enav button{padding:5px 12px;font-size:12.5px;color:#34465c;border-radius:4px 4px 0 0;white-space:nowrap}
+.enav button:hover{background:#fff}
+.escroll{flex:1;min-height:0;overflow:auto;padding:10px;scroll-behavior:smooth}
+#ehrBody{display:grid;gap:10px;align-content:start}
+.es{background:#fff;border:1px solid var(--ehr-line);border-radius:3px}
+.es h4{background:var(--ehr-head);color:#fff;font-size:12.5px;font-weight:600;padding:5px 10px;display:flex;justify-content:space-between}
+.es h4 span+span{font-weight:400;opacity:.75}
+.eb{padding:6px 10px 8px}
+.kv{display:grid;grid-template-columns:128px 1fr;gap:8px;padding:5px 2px;border-bottom:1px solid #eef1f5}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--ehr-mute)}
+table.et{width:100%;border-collapse:collapse;margin:2px 0}
+.et th{text-align:left;background:#eef2f7;color:#44546a;font-weight:600;padding:4px 8px;border:1px solid var(--ehr-line);font-size:12.5px}
+.et td{padding:5px 8px;border:1px solid var(--ehr-line);vertical-align:top}
+.et td.none{color:var(--ehr-mute);font-style:italic}
+.et small{color:var(--ehr-mute)}
+.abn{color:var(--ehr-abn);font-weight:700}
+.wild{background:var(--ehr-wild);color:#6b5a00;font-weight:700;padding:0 4px;border-radius:2px}
+.cs{display:block;width:fit-content;background:var(--sage);color:var(--yellow-ink);font-size:11px;font-weight:600;border-radius:3px;padding:0 6px;margin-top:3px}
+.hide-cs .cs{display:none}
+.pill{display:inline-block;padding:1px 9px;border-radius:10px;font-size:12px;font-weight:600;background:#e2e8f0;color:#2f4059}
+.pill.ok{background:#d9f0df;color:#17622e}
+.pill.act{background:#fde0de;color:#a1211c}
+.note p{padding:5px 2px;border-bottom:1px solid #eef1f5}
+.note p:last-of-type{border-bottom:0}
+.note b{display:block;color:var(--ehr-mute);font-size:12px;font-weight:600}
+.note .draft{color:var(--ehr-mute);font-size:12px;margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.signbtn{background:#e9edf2;border:1px solid var(--ehr-line);border-radius:3px;padding:3px 12px;color:#8996a6;font-size:12px}
+.donebar{background:var(--sage-l);color:var(--ink);border:2px solid var(--sage);border-radius:3px;padding:8px 12px;font-weight:700;font-family:var(--disp)}
+.ehrwin .flash{animation:flashL 1.8s ease-out}
+@keyframes flashL{0%{background:rgba(149,204,197,.6);box-shadow:inset 3px 0 0 var(--coral)}100%{background:transparent;box-shadow:none}}
+
+/* summary + learn */
+.sumcard{background:var(--card);border:2px solid var(--line);border-radius:8px;padding:20px 22px;font-size:21px;line-height:1.55;font-style:italic}
+.sent{border-radius:3px}
+.mom{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:18px;font-size:14.5px;color:var(--mute)}
+.mom b{color:var(--sage-d);margin-right:5px}
+.who{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;align-items:center;color:var(--mute);font-size:13.5px}
+.who span.p{background:var(--maroon);color:#fff;font-weight:600;border-radius:5px;padding:3px 12px;font-size:13px}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.lcard{background:var(--card);border:2px solid var(--line);border-radius:8px;padding:18px 20px}
+.lcard h3{font:800 16px var(--disp);color:var(--sage-d);margin-bottom:6px}
+.big{white-space:nowrap;font:800 clamp(64px,6vw,96px)/1 var(--disp);color:var(--sage-d);letter-spacing:-.02em;margin:6px 0 8px;transition:color .3s}
+.big.over{color:var(--coral-d)}
+.bsub{font-weight:700;color:var(--mute);min-height:24px}
+.bsub.over{color:var(--coral-d)}
+.bar{position:relative;height:16px;border-radius:8px;background:var(--track);margin:18px 0 6px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:var(--sage);width:0}
+.bar.over .fill{background:var(--coral)}
+.bar .mark{position:absolute;top:-6px;bottom:-6px;width:3px;background:var(--ink);left:66.667%}
+.bl{display:flex;justify-content:space-between;color:var(--mute);font-size:12.5px;position:relative}
+.bl .tg{position:absolute;left:66.667%;transform:translateX(-50%);color:var(--ink);font-weight:600}
+.flag{padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.flag:last-child{border-bottom:0}
+.badge{display:inline-block;font-weight:700;font-size:13px;border-radius:4px;padding:2px 11px;margin-bottom:4px}
+.badge.vul{background:var(--coral);color:var(--yellow-ink)}
+.badge.str{background:var(--sage);color:var(--yellow-ink)}
+.badge.nxt{background:var(--yellow);color:var(--yellow-ink)}
+#p-sum .flash,#p-learn .flash{animation:flashD 1.8s ease-out}
+@keyframes flashD{0%{background:rgba(255,234,172,.95)}100%{background:transparent}}
+
+@media (max-width:1180px){
+  body{overflow:auto}
+  .app{height:auto;min-height:100vh}
+  .cols{grid-template-columns:1fr}
+  .col{min-height:460px;max-height:80vh}
+  .controls{flex-wrap:wrap}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
+}
+
+/* ===== video page additions ===== */
+.cols{grid-template-columns:minmax(330px,1.15fr) minmax(260px,.85fr) minmax(460px,1.7fr)}
+.vwrap{padding:10px 12px 0;border-bottom:2px solid var(--line-soft)}
+.vbox{position:relative;aspect-ratio:16/9;background:var(--ink);border-radius:8px;overflow:hidden}
+.vbox iframe,.vbox video,.vbox #yt{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+.vbox video{display:none;object-fit:contain;background:#000}
+.vbox.local video{display:block}
+.vbox.local #yt{display:none}
+.vbox.none #yt,.vbox.none video{display:none}
+.vmsg{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:16px;color:#fff;font-size:14px;background:var(--ink)}
+.vbox.none .vmsg{display:grid}
+.vmeta{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--mute);padding:6px 0 8px}
+.vsrc{display:flex;gap:4px}
+.vsrc button{padding:1px 9px;border-radius:999px;border:1.5px solid var(--line);font-size:11.5px;color:var(--mute)}
+.vsrc button.on{background:var(--tint);color:var(--ink);font-weight:700}
+.lanes{padding:8px 12px;gap:6px}
+.lane{font-size:12px;padding:3px 10px 3px 3px;gap:6px}
+.lane .dot{width:22px;height:22px;font-size:10px}
+.legend{font-size:11.5px;color:var(--mute);padding:6px 16px 0}
+.legend i{display:inline-block;width:22px;height:11px;border:1.5px dashed var(--ink);border-radius:999px;vertical-align:-1px;margin-right:4px}
+.line{cursor:pointer;border-radius:6px;padding-left:4px;padding-right:4px}
+.line:hover{background:var(--tint)}
+.line.now{background:linear-gradient(90deg,var(--yellow),rgba(255,234,172,0))}
+.line.hid,.tlist li.hid{display:none}
+.line .t{font-size:12.5px}
+.chip.pt{background:var(--sage-d)}
+.chip.inf{background:transparent;color:var(--ink);border:1.5px dashed var(--ink);padding:1.5px 0}
+.line p{font-size:14.5px}
+.tlist li.inf .by::after{content:" (inferred)";font-weight:500;color:var(--mute)}
+.tlist li.major span:last-child{font-weight:700}
+.tlist li.cur{background:linear-gradient(90deg,var(--yellow),rgba(255,234,172,0))}
+.vtbl td,.vtbl th{white-space:nowrap}
+.cslog td:nth-child(1){width:54px;color:var(--ehr-mute);font-weight:700}
+.cslog td:nth-child(2){width:46px}
+.ivs{margin-top:10px;border-top:1px solid var(--line-soft)}
+.iv{display:grid;grid-template-columns:1fr auto;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.iv b{font:800 16px var(--disp);color:var(--sage-d);white-space:nowrap}
+.iv.run b{color:var(--coral-d)}
+.iv.wait{opacity:.35}
+.note-sm{font-size:12.5px;color:var(--mute);margin-top:8px}
+.vbox.err{outline:3px solid var(--coral)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 18px;border-radius:999px;font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9}
+.toast.on{opacity:1}
+
+.big{font-size:clamp(48px,4.4vw,72px)}
+.lane.mon .dot{font-size:8.5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div><span class="logo">Chorus ER</span><span class="sub">Case replay: massive PE with cardiac arrest, synced to video</span></div>
+    <div class="tag">Simulation video · synthetic patient · chart fields drafted from captions</div>
+  </header>
+
+  <div class="controls">
+    <button class="play" id="play" aria-label="Play"></button>
+    <div class="clock"><span id="clk">00:00</span><span class="wall" id="wall">1420</span></div>
+    <div class="scrub">
+      <input type="range" id="scrub" min="0" max="920" step="0.1" value="0" aria-label="Case time">
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <div class="speed" id="speed" role="group" aria-label="Playback speed">
+      <button data-s="0.5">0.5×</button><button data-s="1" class="on">1×</button><button data-s="2">2×</button>
+    </div>
+    <button class="ghost" id="restart">Restart</button>
+    <span class="status" id="status">Space play · arrows jump between events · 1 2 3 tabs</span>
+  </div>
+
+  <main class="cols">
+    <section class="col" aria-label="Capture">
+      <div class="colh"><span class="n">1</span><h2>Capture</h2><p>The video is the team; each speaker is a wearable</p></div>
+      <div class="vwrap">
+        <div class="vbox" id="vbox"><div id="yt"></div><video id="lv" playsinline preload="auto"></video><div class="vmsg" id="vmsg">No video loaded. Running on a simulated clock.</div></div>
+        <div class="vmeta"><span id="vsrcTxt">Loading video…</span><span class="vsrc" id="vsrc"><button data-src="yt">YouTube</button><button data-src="local">Local file</button><button data-src="none">No video</button></span></div>
+      </div>
+      <div class="lanes" id="lanes"></div>
+      <div class="legend"><i></i>Dashed chip: speaker inferred from the captions</div>
+      <div class="scroll" id="tscroll"><div id="transcript"></div></div>
+    </section>
+
+    <section class="col" aria-label="Unify">
+      <div class="colh"><span class="n">2</span><h2>Unify</h2><p>Who said and did what, on one timeline</p></div>
+      <div class="scroll" id="lscroll"><ul class="tlist" id="timeline"></ul></div>
+      <div class="pipe still" id="pipe"></div>
+    </section>
+
+    <section class="col" aria-label="Deliver">
+      <div class="colh"><span class="n">3</span><h2>Deliver</h2><p>Chart, summary and risk, written automatically</p></div>
+      <div class="tabs" role="tablist">
+        <button class="tab on" data-tab="ehr" role="tab">EHR chart<i class="dot"></i></button>
+        <button class="tab" data-tab="sum" role="tab">Team summary<i class="dot"></i></button>
+        <button class="tab" data-tab="learn" role="tab">Risk and learning<i class="dot"></i></button>
+      </div>
+      <div class="pane on" id="p-ehr">
+        <div class="ehrwin" id="ehrwin">
+          <div class="ehr-title">
+            <span>ED Encounter · Epic-style mockup, synthetic data</span>
+            <label><input type="checkbox" id="csTog" checked> Show Chorus annotations</label>
+          </div>
+          <div class="banner" id="banner"></div>
+          <div class="enav" id="enav">
+            <button data-go="es-cc">Overview</button><button data-go="es-vit">Flowsheets</button>
+            <button data-go="es-ord">Orders</button><button data-go="es-res">Results</button>
+            <button data-go="es-course">ED course</button><button data-go="es-note">Notes</button><button data-go="es-dx">Disposition</button>
+          </div>
+          <div class="escroll" id="escroll"><div id="ehrBody"></div></div>
+        </div>
+      </div>
+      <div class="pane pad" id="p-sum"><div id="sumBody"></div></div>
+      <div class="pane pad" id="p-learn">
+        <div class="lgrid">
+          <div class="lcard">
+            <h3>Low BP to vasopressor</h3>
+            <div class="big" id="big">00:00</div>
+            <div class="bsub" id="bsub"></div>
+            <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
+            <div class="bl"><span>0</span><span>7:30</span></div>
+            <div class="ivs" id="ivs"></div>
+            <p class="note-sm">Chorus measures the intervals from the record. Your protocol sets the targets.</p>
+          </div>
+          <div class="lcard">
+            <h3>What Chorus flagged</h3>
+            <div id="flags"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ===== Case data: YouTube simulation "Massive PE with cardiac arrest" =====
+   Video seconds (v) are positions in the video. The case starts at v=58 ("Just came through, sweating"),
+   right after the host's intro, and stops at v=978, before the outro.
+   Transcript source: YouTube captions (lightly cleaned; obvious caption errors fixed, doubtful words in [brackets]).
+   Speaker = best inference from context (4th value 1 = inferred, shown with a dashed chip).
+   Monitor numbers and "ER event feed" events come from the video's own on-screen overlay. */
+var VIDEO_ID='IxbzPYRgx10', LOCAL_SRC='videoplayback.mp4';
+var CASE0=58, END_V=978, CASE_LEN=END_V-CASE0, ARR_MIN=20, DATE='10/14/26';
+
+var WHO={
+  TRI:{role:'Triage RN',lane:'Triage RN',dev:'Triage RN wearable'},
+  ATT:{role:'Team leader',lane:'Team leader',dev:'Team leader wearable'},
+  MD:{role:'Physician (Lily)',lane:'Physician (Lily)',dev:'Physician wearable'},
+  RN:{role:'Nurse',lane:'Nurses',dev:'Nurse wearable'},
+  RT:{role:'Respiratory therapist',lane:'RT',dev:'RT wearable'},
+  PT:{role:'Patient',lane:'Patient',dev:'Room audio'},
+  MON:{role:'Monitor feed',lane:'Monitors + events',dev:'ER event feed'}
+};
+
+/* [video second, speaker, text, inferred?] */
+var TRANSCRIPT=[
+[58,'TRI','Just came through, sweating.'],
+[61,'TRI','Hey, could you folks come take a look at this guy? I just triaged him. His name’s Tom, 41-year-old gentleman, shortness of breath for one day with pretty severe chest pain.'],
+[72,'ATT','Why don’t we bring him into trauma? Did we get a set of vitals on him?'],
+[75,'TRI','Yes, we did. BP 86 over 50, heart rate 121, 92% on room air, respiratory rate 22. I’ve paged RT and the rest of the trauma team.'],
+[84,'ATT','Why don’t we get some extra hands in here? Can we also call for RT?'],
+[90,'RT','I’m here.'],
+[92,'ATT','Lily, what do you think? Do you want to be team lead? Do you want to be proceduralist in this one?'],
+[96,'MD','I’m happy to be proceduralist if you—'],
+[98,'ATT','Yeah, I’ll be team leader. Let’s get them set up with the vitals. Jerry, you’re going to be the nurse lead.'],
+[105,'ATT','Who do we have for nurses? We got Dave and Danny and Tammy. You’re the RT.'],
+[112,'ATT','Great. So, Lily, why don’t we start with getting a primary survey and some history, and then we’ll get the patient hooked up to monitors, get some O2 on, get two large-bore IVs. We’ll get a full set of vital signs and we’ll expose them and try to figure out what’s going on.'],
+[127,'PT','I can die.',1],
+[129,'MD','Hey there. Did you say—'],
+[130,'PT','I don’t feel well.'],
+[131,'MD','My name’s Lily. I’m one of the doctors. You said you had some chest pain.'],
+[136,'PT','Yeah, it’s been going on for a day.'],
+[138,'MD','Okay. And any difficulty breathing at all?'],
+[141,'PT','I do. I can’t breathe. It hurts when I breathe.'],
+[143,'MD','Ah, okay. Does it hurt when you breathe in?'],
+[146,'PT','Yeah, it does.'],
+[147,'MD','Okay. And have you been at all well over the last couple of weeks?'],
+[153,'PT','No. I had a knee replacement two weeks ago. My right knee.'],
+[158,'MD','Okay. That leg looks pretty swollen.'],
+[163,'MD','And have you been taking any medication since your knee replacement?'],
+[170,'MD','You’re not on any blood thinners or anything like that?'],
+[172,'PT','No, I’m not.'],
+[173,'MD','Any medical problems that you regularly see a doctor about?'],
+[176,'PT','I have high blood pressure and just a little bit of asthma.'],
+[182,'MD','I’m just going to have a little listen to your chest.'],
+[184,'ATT','So, airway seems fine for the moment. Blood pressure is quite low. While you do the primary survey, I’m going to do a fluid challenge with a passive leg raise.'],
+[195,'ATT','And Danny, whenever you have a chance—maybe you can hit that as well while she puts in the IV.',1],
+[207,'MD','And I am noticing that his right leg is actually super swollen as well.'],
+[210,'MD','Chest is clear. No crackles or wheeze.'],
+[216,'ATT','Blood pressure went down. I’m going to reverse that fluid challenge. Put his feet down.'],
+[223,'RN','I think we should probably get a pair of pads on him, given his blood pressure.',1],
+[227,'ATT','Yeah, I think that’s a really good idea.'],
+[231,'RN','Pads are just to your left there.',1],
+[232,'RT','I’m going to put him on with some high flow.',1],
+[236,'ATT','Yeah, he looks pre-arrest. So we should probably get a backboard on him as well.',1],
+[241,'MD','Any pain when I press on your tummy at all?'],
+[248,'ATT','Can we lift him off?',1],
+[251,'MD','We’re just going to lift you forward.',1],
+[254,'ATT','Let’s get the pads on.'],
+[258,'ATT','So, the patient’s really tachy.'],
+[261,'ATT','Do we have an ultrasound machine close by?'],
+[263,'RN','We do. I brought one in.',1],
+[268,'ATT','Okay, perfect. Why don’t we do a quick RUSH exam to figure out what’s going on.'],
+[273,'ATT','So, we have one large-bore IV.'],
+[275,'RN','We have two large-bore IVs.',1],
+[277,'ATT','Okay, sweet. Do we have any IV fluids close by, like a bolus of Plasma-Lyte that we can just get—'],
+[287,'MD','So I’ve got parasternal long axis—'],
+[292,'MD','you see RV dilation.'],
+[295,'MD','And a D-sign with septal flattening.'],
+[296,'ATT','Okay. Jerry, do you mind getting the [Plasma-Lyte] bolus?',1],
+[298,'MD','And then on my apical four-chamber, RV dilation.'],
+[307,'ATT','So actually, because there’s D-ing of the septum and also RV dilation, we’re not going to do any IV fluids.'],
+[314,'MD','And then just looking at the IVC—very plethoric, no collapse with inspiration.'],
+[326,'MD','Just going to move on. Having a look at Morrison’s pouch—'],
+[332,'MD','No free fluid.'],
+[335,'MD','And then left upper quadrant. No free fluid.'],
+[340,'RN','It’s pretty cool to touch in the peripheries as well.',1],
+[345,'MD','And then the bladder view. No free fluid.'],
+[352,'MD','And then a quick scan of the aorta. Normal. No AAA.'],
+[356,'ATT','I’m just going to quickly summarize what we have here, guys. We have essentially undifferentiated shock, but I suspect this is obstructive shock due to a massive PE, given that he has RV dilation and poor perfusion. He’s very hypotensive, very tachycardic. Shock index is really high, almost two.'],
+[374,'ATT','So we need to get more [nor]epinephrine on board as soon as possible. Dave’s mixing that up. Can we also get the crash cart? I would just want to do some push-dose epinephrine.'],
+[387,'MD','And then just having a quick look at the lungs. Normal lung sliding on the right, and then on the left—normal lung sliding. So, no pneumothorax.'],
+[398,'MD','So, just to summarize: dilation of the right ventricle, a D-sign, and a very plethoric IVC. So it’s looking like possible PE, given the history of the surgery.'],
+[414,'ATT','Yeah, I agree, and we’ve kind of ruled out all the other big, bad, scary things. So I think we should just continue to act on the presumptive diagnosis.'],
+[424,'RN','What do you want the Levo started at?'],
+[425,'ATT','Let’s start at 10 mics per minute. And let’s also give him a heparin bolus, 5,000 units to start.'],
+[434,'ATT','So we’re giving the norepi, we’re not doing fluids, we’re giving heparin to start. And I’m just going to mix up some push-dose pressor.'],
+[447,'RN','His pulse is very thready right here.',1],
+[455,'ATT','Let’s just continue to watch that. And how often is that BP cycling?'],
+[459,'RN','Every two minutes.'],
+[462,'ATT','Every 2 minutes. Okay. I’m just going to squirt that on.'],
+[468,'ATT','Have we got stuff for intubation ready?'],
+[471,'MD','I’ve got an 8 tube, McGrath, number 4 blade. I’ve also got an i-gel ready if you need it.'],
+[478,'ATT','Okay. So I’m going to just push 100 mics of epinephrine.'],
+[486,'RN','5,000 administered, and Levo is running at 10 mics.'],
+[490,'ATT','10 mics. Okay. I’m just going to give him a push of epi as well.'],
+[502,'ATT','So that’s 100 mics of epinephrine. And let’s just repeat this BP as well.'],
+[511,'ATT','Okay. I think we’ve actually lost the pulse. So let’s get on the chest. Let’s start high-quality CPR.'],
+[521,'ATT','Can we also give 1 milligram push of epinephrine?'],
+[529,'ATT','Yeah, Lily, you can grab that in. So we’re doing 30 and 2 for now.',1],
+[538,'ATT','1 milligram push, Jerry. And Jerry, can you just let us know when two minutes is coming up for that first pulse and rhythm check? And also if you could remind me to give another dose of epinephrine every 3 to 5 minutes.',1],
+[555,'ATT','So, guys, currently we’re in the PEA algorithm—likely due to a massive PE. We should definitely prep for a crash intubation and also get this LUCAS device on, just because we’re limited on hands.'],
+[573,'ATT','And I think we really should be giving thrombolysis as well. Just between the two options of alteplase and tenecteplase, I think we should probably go with TNK, since we can give it as a bolus. Jerry, can you actually call the pharmacy and get TNK delivered ASAP? We’re going to do 40 milligrams of TNK.'],
+[605,'ATT','And how far are we in this round of CPR?'],
+[607,'RN','We’re at a minute thirty.'],
+[609,'ATT','So, guys, let’s get queued up. As soon as we do that pulse and rhythm check at 2 minutes, we’re going to get the LUCAS device and switch over to LUCAS.'],
+[621,'ATT','On this next pulse and rhythm check—or next breath—we’ll switch over.'],
+[628,'RN','10 seconds.'],
+[630,'ATT','All right, let’s get that on.'],
+[646,'RN','Got it.',1],
+[647,'ATT','Okay. Excellent.'],
+[649,'ATT','Okay. So, Lily, I just want you to go up to the airway and let’s get an intubation.'],
+[656,'MD','Perfect, I will. We’ll do this as a crash intubation with no meds, given that the patient’s actually in cardiac arrest right now.'],
+[664,'ATT','Did we get the TNK?'],
+[665,'RN','TNK is here.'],
+[666,'ATT','TNK. Okay. So, Danny, can you push 40 milligrams of TNK?'],
+[681,'RN','50 seconds to more epi.'],
+[686,'ATT','Can you get one epinephrine?',1],
+[697,'MD','Patient’s intubated with a number 8 tube.'],
+[702,'ATT','Good job. Easy intubation.'],
+[708,'ATT','And Jerry, can you just let me know when we’re coming up on 2 minutes?'],
+[711,'RN','Another 45 seconds.'],
+[717,'ATT','Sorry—when did you say that epi is due?'],
+[720,'RN','We’re another 10 seconds. We’re at 3 minutes.'],
+[722,'ATT','Okay. You can just push the epinephrine.'],
+[726,'ATT','Do you have access?'],
+[728,'ATT','Jerry, can you let me know when to push the epi?'],
+[733,'ATT','Push it, Dave. Push it.'],
+[736,'RN','1 milligram of epinephrine.'],
+[744,'RN','20 seconds. Pulse check.'],
+[747,'ATT','Okay, let’s get ready to pause this.'],
+[764,'ATT','Okay, patient’s still pulseless, and the patient is in a slow narrow-complex PEA. So I’m going to restart.'],
+[773,'ATT','And now that we have an endotracheal tube, we’ll do continuous CPR with the LUCAS device. Going through the H’s and T’s, I think we already have a pretty clear diagnosis of what we’re dealing with—the massive PE. We’ve already given TNK. We’ve already given the heparin bolus. We’re giving epi every 3 to 5 minutes. We’re not doing any IV fluids because of the D-ing of the septum and the RV dilation. Do you guys have any other ideas of what we should be doing in this situation?'],
+[811,'MD','So you said we’ve already given one dose of 1 milligram of epi. We’ve given two doses of that—and actually we have norepi still infusing at 10 mics per minute, which we can maybe bump up to 20 mics per minute. See if that helps.',1],
+[827,'ATT','Okay. Yeah, because we’re in the [unclear] side of the algorithm for the moment—and 20 mics. Maybe we can switch them over to the vent and just do low tidal volumes, like 6 cc per kilogram of lean body mass, and low PEEP as well. Obviously 100% FiO2, because we just want to minimize intrathoracic pressures from positive pressure ventilation.'],
+[861,'ATT','Any other ideas, guys? Dave, Danny, Jerry, do you have any ideas?'],
+[868,'ATT','No? Okay. How far are we in this round of CPR?'],
+[872,'RN','15 seconds to pulse check.'],
+[882,'RN','30 seconds—more epi.',1],
+[885,'RN','Here we go.',1],
+[888,'ATT','Okay, pulse check.'],
+[890,'ATT','Oh, I got a pulse back. So, let’s just repeat a full set of vitals. The BP cuff is going right now.'],
+[896,'MD','We have ROSC.',1],
+[898,'RN','Yeah, we have ROSC.',1],
+[900,'RN','BP cycling.',1],
+[905,'RN','His O2 sats are 96. Heart rate—yeah, it’s definitely coming up—and CO2 is 38, which is quite reassuring.',1],
+[916,'MD','He’s got some spontaneous respirations in there, too.',1],
+[920,'ATT','Okay, perfect. So, Jerry, can you actually call the ICU? Let them know that we have a really sick PE patient who may need to go on ECMO.'],
+[929,'RN','Absolutely.'],
+[931,'ATT','And if you could also call CV surgery, because we probably need to consider catheter-directed thrombectomy for this guy. But in the meantime, I think we should just start post-cardiac-arrest care.'],
+[943,'ATT','Can we just get a temp on him, to make sure he’s not going hyper- or hypothermic?'],
+[948,'RN','85 over 43 BP. Did you want to increase the norepi?',1],
+[949,'ATT','Yeah, let’s bump that up. We’re going to target a MAP of 65. He’s currently at 20 mics per minute of norepi, right?'],
+[958,'RN','Correct.'],
+[961,'ATT','Okay. Danny, maybe you can draw up an epinephrine infusion as well. And in the meantime, Dave, you can just bump up the norepi infusion to 30 mics per minute.'],
+[975,'ATT','Okay. Well, end the case there.']
+];
+
+/* ---- state helpers used by the key events ---- */
+function wallOf(v){return '14'+String(ARR_MIN+Math.floor(Math.max(0,v-CASE0)/60)).padStart(2,'0');}
+function ED(s,e,text){s.course.push({v:e.v,who:e.who,text:text});}
+function OR(s,key,patch,e){
+  var o=s.ord[key]||{key:key,at:e.v,by:e.who};
+  s.ord[key]=Object.assign({},o,patch);
+}
+function VIT(s,e,patch,src){
+  var prev=s.vit.length?s.vit[s.vit.length-1]:{hr:null,bp:null,rr:null,spo2:null,etco2:null};
+  var row=Object.assign({},prev,patch,{v:e.v,who:e.who,src:src||e.who,note:patch.note||''});
+  if(!('note' in patch))row.note='';
+  s.vit.push(row);
+}
+
+/* ---- key events: what Chorus extracts and writes to the chart ---- */
+var EVENTS=[];
+function K(v,who,tl,ex,f,o){var e=Object.assign({v:v,who:who,tl:tl,ex:ex,f:f},o||{});EVENTS.push(e);return e;}
+
+K(61,'TRI','Handoff: Tom, 41M, shortness of breath x1 day, severe chest pain',
+  [['Chief complaint','Shortness of breath, chest pain'],['Patient','Tom, 41 y.o. male'],['Arrival','Walk-in, triaged']],
+  function(s,e){
+    s.name='TOM';s.age='41 y.o.';s.cc='Shortness of breath; chest pain';
+    s.arr={mode:'Walk-in, triaged',by:e.who,at:e.v};
+    s.hpi=['shortness of breath for one day with severe chest pain'];
+    s.team.TRI='Triage RN (name not spoken)';
+    s.sum.a='41M walk-in with one day of shortness of breath and severe chest pain.';
+    ED(s,e,'Triage handoff: 41M, shortness of breath x1 day, severe chest pain.');
+  },{id:'handoff',major:1});
+
+K(75,'TRI','Triage vitals: BP 86/50, HR 121, SpO2 92% on room air, RR 22',
+  [['Vitals','BP 86/50'],['Vitals','HR 121'],['Vitals','SpO2 92% RA'],['Vitals','RR 22']],
+  function(s,e){
+    VIT(s,e,{hr:121,bp:'86/50',rr:22,spo2:'92% RA'},'TRI');
+    s.sum.b='Triage vitals: BP 86/50, HR 121, SpO2 92% on room air, RR 22.';
+    ED(s,e,'Triage vitals: BP 86/50, HR 121, SpO2 92% RA, RR 22. RT and trauma team paged.');
+  },{id:'lowbp',major:1});
+
+K(98,'ATT','Team leader takes charge; physician and nurse-lead roles assigned',
+  [['Team','Team leader: attending'],['Team','Proceduralist: Lily (MD)'],['Team','Nurse lead: Jerry']],
+  function(s,e){
+    s.team.ATT='Attending (name not spoken)';s.team.MD='Lily (proceduralist)';s.team.RNL='Jerry (nurse lead)';
+    s.team.RT='RT arrived (name pending)';
+    ED(s,e,'Team leader and proceduralist (Lily) assigned; Jerry is nurse lead; RT at bedside.');
+  },{id:'team'});
+
+K(105,'ATT','Names the team: nurses Dave and Danny, RT Tammy',
+  [['Team','Nurses: Dave, Danny'],['Team','RT: Tammy']],
+  function(s,e){s.team.RNs='Dave, Danny (RN)';s.team.RT='Tammy (RT)';},{quiet:1});
+
+K(112,'ATT','Plan: primary survey and history, monitors, O2, two large-bore IVs, full vitals',
+  [['Orders','Cardiac monitoring'],['Orders','Oxygen'],['Orders','IV access x2'],['Orders','Full vital signs']],
+  function(s,e){
+    OR(s,'mon',{name:'Cardiac monitoring, continuous',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    OR(s,'o2',{name:'Oxygen therapy',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    OR(s,'iv',{name:'IV access x2 (large-bore)',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    ED(s,e,'Primary survey and history assigned. Monitors, O2, two large-bore IVs and a full set of vitals ordered.');
+  },{id:'plan'});
+
+K(136,'MD','History: chest pain for a day, painful breathing',
+  [['HPI','Chest pain x1 day'],['HPI','Dyspnea, pain on inspiration']],
+  function(s,e){
+    s.hpi=['shortness of breath for one day with severe chest pain, worse on breathing in'];
+    s.sum.b2='';
+  });
+
+K(150,'MON','Monitors connected: HR 120, RR 22, SpO2 92%',
+  [['Vitals','HR 120'],['Vitals','RR 22'],['Vitals','SpO2 92%']],
+  function(s,e){
+    VIT(s,e,{hr:120,rr:22,spo2:'92%',bp:null},'MON');
+    OR(s,'mon',{status:'Active',doneAt:e.v,doneBy:e.who},e);
+    ED(s,e,'Monitor on: HR 120, RR 22, SpO2 92%. BP not yet reading.');
+  },{id:'monitor',major:1});
+
+K(153,'MD','History: right knee replaced 2 weeks ago; right leg swollen',
+  [['HPI','R knee replacement 2 wk ago'],['Exam','R leg swollen']],
+  function(s,e){
+    s.hpi=['shortness of breath for one day with severe chest pain, worse on breathing in; right knee replacement two weeks ago'];
+    s.exam=['Right leg swollen'];
+    ED(s,e,'History: right knee replacement 2 weeks ago. Right leg swollen.');
+  },{id:'knee'});
+
+K(170,'MD','History: no blood thinners; high blood pressure, mild asthma',
+  [['Medications','No blood thinners'],['PMH','Hypertension'],['PMH','Asthma (mild)']],
+  function(s,e){
+    s.meds='No anticoagulants (patient denies)';s.pmh=['Hypertension','Asthma (mild)'];
+    s.sum.c='Right knee replaced 2 weeks ago with a swollen right leg; no blood thinners; history of hypertension and mild asthma.';
+  });
+
+K(182,'MON','BP cuff reads 86/50',
+  [['Vitals','BP 86/50']],
+  function(s,e){VIT(s,e,{bp:'86/50'},'MON');},{quiet:1});
+
+K(184,'ATT','Airway intact, BP low: passive leg raise to test fluid response',
+  [['Exam','Airway intact'],['Procedure','Passive leg raise']],
+  function(s,e){
+    OR(s,'plr',{name:'Passive leg raise (fluid responsiveness)',prio:'STAT',status:'In progress',by:e.who,at:e.v},e);
+    ED(s,e,'Airway intact, BP low. Passive leg raise started to test fluid responsiveness.');
+  });
+
+K(207,'MD','Exam: right leg markedly swollen; chest clear, no wheeze',
+  [['Exam','R leg markedly swollen'],['Exam','Lungs clear, no wheeze']],
+  function(s,e){
+    s.exam=['Right leg markedly swollen','Chest clear, no crackles or wheeze'];
+    ED(s,e,'Exam: right leg markedly swollen. Chest clear, no crackles or wheeze.');
+  });
+
+K(216,'MON','BP falls to 77/45',
+  [['Vitals','BP 77/45']],
+  function(s,e){VIT(s,e,{bp:'77/45'},'MON');ED(s,e,'BP 77/45.');},{id:'bpdrop',major:1});
+
+K(217,'ATT','BP fell; passive leg raise reversed',
+  [['Orders','Passive leg raise set to Discontinued']],
+  function(s,e){
+    OR(s,'plr',{status:'Discontinued',doneAt:e.v,doneBy:e.who},e);
+    ED(s,e,'BP fell with passive leg raise; maneuver reversed.');
+  },{quiet:1});
+
+K(223,'RN','Suggests defibrillator pads, given the blood pressure',
+  [['Orders','Defibrillator pads']],
+  function(s,e){
+    OR(s,'pads',{name:'Defibrillator pads',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    ED(s,e,'Defibrillator pads requested for hypotension.');
+  },{id:'padsCall',inferred:1});
+
+K(232,'MON','High-flow oxygen initiated',
+  [['Orders','Oxygen set to Active (high-flow)']],
+  function(s,e){
+    OR(s,'o2',{name:'Oxygen therapy, high-flow',status:'Active',doneAt:e.v,doneBy:e.who},e);
+    ED(s,e,'High-flow oxygen started.');
+  });
+
+K(252,'MON','CPR board placed',
+  [['Orders','CPR board']],
+  function(s,e){
+    OR(s,'board',{name:'CPR / backboard',prio:'STAT',status:'Completed',by:e.who,at:e.v,doneAt:e.v,doneBy:e.who},e);
+    ED(s,e,'CPR board placed (looks pre-arrest).');
+  },{quiet:1});
+
+K(254,'MON','HR rises to 125',
+  [['Vitals','HR 125']],
+  function(s,e){VIT(s,e,{hr:125},'MON');},{quiet:1});
+
+K(268,'ATT','Orders a bedside RUSH ultrasound exam',
+  [['Orders','POCUS: RUSH exam, STAT']],
+  function(s,e){
+    OR(s,'rush',{name:'POCUS: RUSH exam',prio:'STAT',status:'In progress',by:e.who,at:e.v},e);
+    ED(s,e,'Bedside RUSH exam ordered to find the cause of shock.');
+  },{id:'rushCall'});
+
+K(274,'MON','Defibrillation pads placed',
+  [['Orders','Defibrillator pads set to Completed']],
+  function(s,e){
+    OR(s,'pads',{status:'Completed',doneAt:e.v,doneBy:e.who},e);
+    s.sum.d='BP fell to 77/45 and HR rose to 125–131; defibrillator pads and a CPR board were placed.';
+    ED(s,e,'Defibrillator pads placed.');
+  },{id:'pads',major:1});
+
+K(275,'RN','Two large-bore IVs confirmed',
+  [['Orders','IV access x2 set to Completed']],
+  function(s,e){
+    OR(s,'iv',{status:'Completed',doneAt:e.v,doneBy:e.who},e);
+    ED(s,e,'Two large-bore IVs in.');
+  },{inferred:1});
+
+K(292,'MD','RUSH: right ventricle dilated',
+  [['Results','RV: dilated']],
+  function(s,e){
+    s.res.rv={name:'RV size',value:'Dilated (parasternal long axis, apical 4-chamber)',flag:true,at:e.v,by:e.who};
+    ED(s,e,'RUSH: RV dilation.');
+  },{id:'rv',major:1});
+
+K(295,'MD','RUSH: D-sign with septal flattening',
+  [['Results','Septum: D-sign']],
+  function(s,e){
+    s.res.sept={name:'Interventricular septum',value:'D-sign, septal flattening',flag:true,at:e.v,by:e.who};
+    ED(s,e,'RUSH: D-sign with septal flattening.');
+  });
+
+K(307,'ATT','Decides against IV fluids because of the RV strain',
+  [['Plan','IV fluids withheld (RV strain)']],
+  function(s,e){
+    s.plan.push('IV fluids withheld because of RV dilation and septal bowing.');
+    ED(s,e,'No IV fluids: RV dilation and D-sign.');
+  },{id:'noFluids'});
+
+K(314,'MD','RUSH: IVC plethoric, no collapse with breathing',
+  [['Results','IVC: plethoric, no collapse']],
+  function(s,e){
+    s.res.ivc={name:'IVC',value:'Plethoric, no inspiratory collapse',flag:true,at:e.v,by:e.who};
+    ED(s,e,'RUSH: IVC plethoric with no collapse.');
+  });
+
+K(332,'MD','RUSH: no free fluid in Morrison’s pouch',
+  [['Results','Free fluid: none (RUQ)']],
+  function(s,e){s.res.fluid={name:'Free fluid',value:'None: RUQ',flag:false,at:e.v,by:e.who};},{quiet:1});
+K(335,'MD','RUSH: no free fluid, left upper quadrant',
+  [['Results','Free fluid: none (RUQ, LUQ)']],
+  function(s,e){s.res.fluid={name:'Free fluid',value:'None: RUQ, LUQ',flag:false,at:e.v,by:e.who};},{quiet:1});
+K(345,'MD','RUSH: no free fluid, bladder view',
+  [['Results','Free fluid: none (RUQ, LUQ, pelvis)']],
+  function(s,e){
+    s.res.fluid={name:'Free fluid',value:'None: RUQ, LUQ, pelvis',flag:false,at:e.v,by:e.who};
+    ED(s,e,'RUSH: no free fluid in RUQ, LUQ or pelvis.');
+  });
+
+K(352,'MD','RUSH: aorta normal',
+  [['Results','Aorta: normal, no AAA']],
+  function(s,e){
+    s.res.aorta={name:'Aorta',value:'Normal, no AAA',flag:false,at:e.v,by:e.who};
+  });
+
+K(356,'ATT','Working diagnosis: obstructive shock from a massive PE',
+  [['Diagnosis','Suspected massive PE · I26.09'],['Diagnosis','Obstructive shock · R57.8']],
+  function(s,e){
+    s.dx.push({name:'Suspected acute massive pulmonary embolism with acute cor pulmonale',code:'I26.09',type:'Primary',by:e.who,at:e.v});
+    s.dx.push({name:'Obstructive shock',code:'R57.8',type:'Secondary',by:e.who,at:e.v});
+    s.sum.f='Working diagnosis: obstructive shock from a massive pulmonary embolism.';
+    ED(s,e,'Working diagnosis: obstructive shock from massive PE (RV dilation, poor perfusion, shock index near 2).');
+  },{id:'dx',major:1});
+
+K(374,'ATT','Needs more pressor on board; asks for crash cart and push-dose epinephrine',
+  [['Plan','Vasopressor needed'],['Orders','Crash cart, push-dose epinephrine']],
+  function(s,e){ED(s,e,'Vasopressor needed as soon as possible; push-dose epinephrine being prepared.');},{id:'pressorVoiced'});
+
+K(392,'MD','Lung ultrasound: lung sliding on both sides, no pneumothorax',
+  [['Results','Lungs: sliding present bilaterally'],['Orders','RUSH exam set to Completed']],
+  function(s,e){
+    s.res.lungs={name:'Lung sliding',value:'Present bilaterally, no pneumothorax',flag:false,at:e.v,by:e.who};
+    OR(s,'rush',{status:'Completed',doneAt:e.v,doneBy:e.who},e);
+    s.sum.e='Bedside RUSH showed RV dilation, a D-sign, a plethoric IVC and no free fluid or pneumothorax, so IV fluids were withheld.';
+    ED(s,e,'RUSH complete: lung sliding present on both sides, no pneumothorax.');
+  },{id:'rushDone'});
+
+K(414,'ATT','Agrees on possible PE; will act on the presumptive diagnosis',
+  [['Plan','Treat presumed PE']],
+  function(s,e){ED(s,e,'Team agrees: possible PE given recent knee surgery. Acting on the presumptive diagnosis.');});
+
+K(425,'ATT','Orders norepinephrine 10 mcg/min and heparin 5,000 units IV',
+  [['Orders','Norepinephrine 10 mcg/min'],['Orders','Heparin 5,000 units IV bolus']],
+  function(s,e){
+    OR(s,'levo',{name:'Norepinephrine infusion',detail:'10 mcg/min',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    OR(s,'hep',{name:'Heparin 5,000 units IV bolus',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    ED(s,e,'Norepinephrine 10 mcg/min and heparin 5,000 units IV bolus ordered.');
+  },{id:'levoOrder',major:1});
+
+K(442,'MON','HR eases to 129',
+  [['Vitals','HR 129']],
+  function(s,e){VIT(s,e,{hr:129},'MON');},{quiet:1});
+
+K(447,'RN','Pulse very thready',
+  [['Exam','Pulse thready']],
+  function(s,e){ED(s,e,'Pulse very thready.');},{quiet:1,inferred:1});
+
+K(459,'RN','BP cuff cycling every 2 minutes',
+  [['Monitoring','BP every 2 min']],
+  function(s,e){OR(s,'mon',{detail:'BP every 2 min'},e);},{quiet:1});
+
+K(471,'MD','Airway kit ready: 8.0 tube, McGrath, i-gel',
+  [['Airway','8.0 ETT, McGrath #4, i-gel']],
+  function(s,e){ED(s,e,'Airway equipment ready: 8.0 tube, McGrath video laryngoscope (#4 blade), i-gel.');});
+
+K(478,'ATT','Orders epinephrine 100 mcg IV push',
+  [['Orders','Epinephrine 100 mcg IV push']],
+  function(s,e){
+    OR(s,'epi100',{name:'Epinephrine 100 mcg IV push (push-dose)',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+  });
+
+K(486,'RN','Heparin given; norepinephrine running at 10 mcg/min',
+  [['Orders','Heparin set to Given'],['Orders','Norepinephrine set to Running']],
+  function(s,e){
+    OR(s,'hep',{status:'Given',doneAt:e.v,doneBy:e.who},e);
+    OR(s,'levo',{status:'Running',doneAt:e.v,doneBy:e.who},e);
+    s.sum.g='Norepinephrine started at 10 mcg/min and heparin 5,000 units given.';
+    ED(s,e,'Heparin 5,000 units given. Norepinephrine running at 10 mcg/min.');
+  },{id:'levoRun',major:1});
+
+K(494,'MON','Epinephrine 100 mcg IV push given',
+  [['Orders','Epinephrine 100 mcg set to Given']],
+  function(s,e){
+    OR(s,'epi100',{status:'Given',doneAt:e.v,doneBy:e.who},e);
+    ED(s,e,'Epinephrine 100 mcg IV push given.');
+  },{quiet:1});
+
+K(511,'ATT','Pulse lost: PEA arrest, CPR started',
+  [['Diagnosis','Cardiac arrest, PEA · I46.8'],['Orders','CPR, 30:2'],['Event','Pulse lost']],
+  function(s,e){
+    s.dx.push({name:'Cardiac arrest due to other underlying condition (PEA)',code:'I46.8',type:'Secondary',by:e.who,at:e.v});
+    OR(s,'cpr',{name:'CPR (ACLS), 30 compressions : 2 breaths',prio:'STAT',status:'In progress',by:e.who,at:e.v},e);
+    s.sum.h='He lost his pulse at '+mmss(e.v-CASE0)+' (PEA arrest) and CPR started within seconds.';
+    ED(s,e,'Pulse lost. Cardiac arrest (PEA). High-quality CPR started.');
+  },{id:'arrest',major:1});
+
+K(516,'MON','Monitor shows no pulse or BP',
+  [['Vitals','HR — BP — (pulseless)']],
+  function(s,e){VIT(s,e,{hr:null,bp:null,rr:null,spo2:null,note:'Pulseless'},'MON');},{quiet:1});
+
+K(521,'ATT','Orders epinephrine 1 mg IV push',
+  [['Orders','Epinephrine 1 mg IV push (#1)']],
+  function(s,e){
+    OR(s,'epi1',{name:'Epinephrine 1 mg IV push (#1)',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+  },{id:'epiOrder'});
+
+K(538,'ATT','Epinephrine 1 mg pushed; nurse lead to time pulse checks and epinephrine every 3–5 min',
+  [['Orders','Epinephrine 1 mg (#1) set to Given'],['Plan','Epinephrine every 3–5 min']],
+  function(s,e){
+    OR(s,'epi1',{status:'Given',doneAt:e.v,doneBy:e.who},e);
+    s.plan.push('Epinephrine 1 mg every 3 to 5 minutes; pulse and rhythm check every 2 minutes.');
+    ED(s,e,'Epinephrine 1 mg IV push given. Jerry to time epinephrine (3 to 5 min) and pulse checks.');
+  },{inferred:1});
+
+K(555,'ATT','PEA algorithm, likely massive PE; plans crash intubation and mechanical CPR',
+  [['Plan','PEA algorithm'],['Plan','Crash intubation'],['Orders','Mechanical CPR (LUCAS)']],
+  function(s,e){
+    OR(s,'lucas',{name:'Mechanical CPR device (LUCAS)',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    ED(s,e,'PEA algorithm, likely massive PE. Preparing crash intubation and LUCAS device (limited hands).');
+  });
+
+K(573,'ATT','Decides on thrombolysis: TNK 40 mg IV bolus',
+  [['Orders','Tenecteplase (TNK) 40 mg IV bolus']],
+  function(s,e){
+    OR(s,'tnk',{name:'Tenecteplase (TNK) 40 mg IV bolus',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    ED(s,e,'Thrombolysis during arrest: tenecteplase chosen over alteplase (bolus). Dose 40 mg.');
+  },{id:'tnkDecision',major:1});
+
+K(593,'ATT','Asks nurse lead to call pharmacy to deliver TNK now',
+  [['Task','Pharmacy: deliver TNK ASAP']],
+  function(s,e){ED(s,e,'Pharmacy called to deliver TNK.');},{id:'tnkPharm'});
+
+K(632,'MON','Mechanical CPR device (LUCAS) applied',
+  [['Orders','Mechanical CPR set to Completed']],
+  function(s,e){
+    OR(s,'lucas',{status:'Completed',doneAt:e.v,doneBy:e.who},e);
+    ED(s,e,'LUCAS mechanical CPR device applied.');
+  },{id:'lucasOn'});
+
+K(649,'ATT','Asks Lily to intubate: crash intubation, no meds',
+  [['Orders','Endotracheal intubation (crash)']],
+  function(s,e){
+    OR(s,'ett',{name:'Endotracheal intubation, crash, no sedation',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    ED(s,e,'Crash intubation, no medications (cardiac arrest).');
+  });
+
+K(665,'RN','TNK arrives in the room',
+  [['Task','TNK delivered to bedside']],
+  function(s,e){ED(s,e,'TNK at bedside.');},{id:'tnkArr'});
+
+K(666,'ATT','Asks Danny to push TNK 40 mg',
+  [['Orders','TNK 40 mg: push now']],
+  function(s,e){},{quiet:1});
+
+K(686,'ATT','Asks for epinephrine 1 mg (#2)',
+  [['Orders','Epinephrine 1 mg IV push (#2)']],
+  function(s,e){
+    OR(s,'epi2',{name:'Epinephrine 1 mg IV push (#2)',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+  },{inferred:1});
+
+K(688,'MON','Intubation completed',
+  [['Orders','Intubation set to Completed']],
+  function(s,e){OR(s,'ett',{status:'Completed',doneAt:e.v,doneBy:e.who},e);},{quiet:1});
+
+K(696,'MON','TNK 40 mg IV administered',
+  [['Orders','TNK set to Given']],
+  function(s,e){
+    OR(s,'tnk',{status:'Given',doneAt:e.v,doneBy:e.who},e);
+    ED(s,e,'Tenecteplase 40 mg IV given.');
+  },{id:'tnkGiven',major:1});
+
+K(697,'MD','Intubated with an 8.0 tube',
+  [['Procedure','ETT 8.0 placed']],
+  function(s,e){
+    OR(s,'ett',{detail:'8.0 ETT'},e);
+    ED(s,e,'Intubated with 8.0 endotracheal tube.');
+  });
+
+K(732,'MON','Epinephrine 1 mg IV administered (#2)',
+  [['Orders','Epinephrine 1 mg (#2) set to Given']],
+  function(s,e){
+    OR(s,'epi2',{status:'Given',doneAt:e.v,doneBy:e.who},e);
+    s.sum.i='TNK 40 mg and two doses of epinephrine 1 mg were given, the LUCAS device was applied and he was intubated (8.0 tube).';
+    ED(s,e,'Epinephrine 1 mg IV push given (#2).');
+  });
+
+K(764,'ATT','Still pulseless: slow narrow-complex PEA; CPR resumes',
+  [['Rhythm','PEA, slow narrow-complex'],['Orders','CPR resumed']],
+  function(s,e){ED(s,e,'Pulse check: still pulseless, slow narrow-complex PEA. CPR resumed.');});
+
+K(773,'ATT','Continuous CPR with LUCAS; reviews H’s and T’s; asks the team for ideas',
+  [['Plan','Continuous CPR (LUCAS)'],['Plan','No IV fluids (RV strain)']],
+  function(s,e){
+    ED(s,e,'Continuous CPR with LUCAS. H’s and T’s reviewed: massive PE. TNK, heparin and epinephrine given. Team asked for other ideas.');
+  },{id:'ask1'});
+
+K(811,'MD','Suggests raising norepinephrine from 10 to 20 mcg/min',
+  [['Orders','Norepinephrine 20 mcg/min']],
+  function(s,e){
+    OR(s,'levo',{detail:'20 mcg/min (increased from 10)'},e);
+    ED(s,e,'Norepinephrine increased to 20 mcg/min.');
+  },{inferred:1});
+
+K(827,'ATT','Orders lung-protective ventilation: 6 mL/kg lean body mass, low PEEP, FiO2 100%',
+  [['Orders','Ventilator: TV 6 mL/kg, low PEEP, FiO2 100%']],
+  function(s,e){
+    OR(s,'vent',{name:'Mechanical ventilation',detail:'TV 6 mL/kg lean body mass, low PEEP, FiO2 100%',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    ED(s,e,'Ventilator plan: low tidal volume (6 mL/kg lean body mass), low PEEP, FiO2 100%.');
+  });
+
+K(861,'ATT','Asks Dave, Danny and Jerry for ideas',
+  [['Team','Team input requested']],
+  function(s,e){ED(s,e,'Team leader asked the nurses for other ideas.');},{id:'ask2',quiet:1});
+
+K(890,'ATT','Pulse check: pulse is back',
+  [['Event','Pulse check: pulse present'],['Orders','CPR set to Completed']],
+  function(s,e){OR(s,'cpr',{status:'Completed',doneAt:e.v,doneBy:e.who},e);});
+
+K(898,'MON','ROSC: HR 69, RR 20, SpO2 96%',
+  [['Event','ROSC'],['Vitals','HR 69'],['Vitals','RR 20'],['Vitals','SpO2 96%']],
+  function(s,e){
+    VIT(s,e,{hr:69,rr:20,spo2:'96%',bp:null,note:'ROSC'},'MON');
+    s.rosc=e.v;
+    s.sum.j='Return of spontaneous circulation at '+mmss(e.v-CASE0)+' with HR 69, SpO2 96% and EtCO2 38.';
+    ED(s,e,'Return of spontaneous circulation. HR 69, RR 20, SpO2 96%.');
+  },{id:'rosc',major:1});
+
+K(905,'RN','SpO2 96, EtCO2 38',
+  [['Vitals','EtCO2 38']],
+  function(s,e){VIT(s,e,{etco2:38},'RN');},{quiet:1,inferred:1});
+
+K(916,'MD','Spontaneous respirations',
+  [['Exam','Spontaneous respirations']],
+  function(s,e){ED(s,e,'Spontaneous respirations present.');},{quiet:1,inferred:1});
+
+K(920,'ATT','Calls ICU: may need ECMO',
+  [['Consult','ICU: admission, possible ECMO'],['Disposition','ICU']],
+  function(s,e){
+    OR(s,'icu',{name:'Consult: ICU admission, ECMO evaluation',prio:'STAT',status:'Called',by:e.who,at:e.v},e);
+    s.dispo={to:'ICU (pending), possible ECMO',status:'ICU contacted',by:e.who,at:e.v};
+    ED(s,e,'ICU contacted: very sick PE patient who may need ECMO.');
+  },{id:'icu',major:1});
+
+K(931,'ATT','Calls CV surgery for catheter-directed thrombectomy; starts post-arrest care',
+  [['Consult','CV surgery: possible thrombectomy'],['Plan','Post-cardiac arrest care']],
+  function(s,e){
+    OR(s,'cvs',{name:'Consult: CV surgery (catheter-directed thrombectomy)',prio:'STAT',status:'Called',by:e.who,at:e.v},e);
+    s.plan.push('Post-cardiac arrest care started. CV surgery consulted for possible catheter-directed thrombectomy.');
+    ED(s,e,'CV surgery contacted for possible catheter-directed thrombectomy. Post-cardiac arrest care started.');
+  },{id:'cvs'});
+
+K(943,'ATT','Asks for a temperature to avoid hyper- or hypothermia',
+  [['Orders','Temperature']],
+  function(s,e){
+    OR(s,'temp',{name:'Temperature measurement',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+  },{id:'temp'});
+
+K(944,'MON','BP 85/43',
+  [['Vitals','BP 85/43']],
+  function(s,e){VIT(s,e,{bp:'85/43',note:''},'MON');ED(s,e,'BP 85/43.');},{quiet:1});
+
+K(949,'ATT','Target MAP 65; norepinephrine to be raised',
+  [['Plan','MAP target ≥ 65']],
+  function(s,e){
+    s.plan.push('MAP target 65.');
+    OR(s,'levo',{detail:'20 mcg/min (to increase; MAP target 65)'},e);
+  });
+
+K(961,'ATT','Epinephrine infusion to be drawn up; norepinephrine to 30 mcg/min',
+  [['Orders','Epinephrine infusion'],['Orders','Norepinephrine 30 mcg/min']],
+  function(s,e){
+    OR(s,'levo',{detail:'30 mcg/min (increased from 20)'},e);
+    OR(s,'epiinf',{name:'Epinephrine infusion',prio:'STAT',status:'Ordered',by:e.who,at:e.v},e);
+    s.sum.k='ICU and CV surgery contacted for ECMO or catheter-directed thrombectomy; norepinephrine raised to 30 mcg/min with an epinephrine infusion planned.';
+    ED(s,e,'Norepinephrine to 30 mcg/min. Epinephrine infusion to be drawn up.');
+  });
+
+K(975,'ATT','Case ended',
+  [['Event','Case ended']],
+  function(s,e){s.done=true;ED(s,e,'Case ended.');},{id:'end'});
+
+EVENTS.sort(function(a,b){return a.v-b.v;});
+var EVBY={};EVENTS.forEach(function(e){if(e.id)EVBY[e.id]=e;});
+function V(id){return EVBY[id]?EVBY[id].v:null;}
+function mmss(sec){sec=Math.max(0,Math.round(sec));return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');}
+
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+var pad=function(n){return String(n).padStart(2,'0')};
+var cm=function(v){return mmss(v-CASE0)};                 /* case clock mm:ss from video second */
+var short=function(a,b){return mmss(V(b)-V(a)).replace(/^0/,'');};
+var LAB={TRI:'TRI',ATT:'TL',MD:'MD',RN:'RN',RT:'RT',PT:'PT',MON:'MON'};
+var NAMES={TRI:'Triage RN',ATT:'Team leader',MD:'Physician (Lily)',RN:'Nurse',RT:'RT',PT:'Patient',MON:'Monitor feed'};
+var TEAMROW=[['TRI','Triage RN'],['ATT','Team leader'],['MD','Proceduralist'],['RNL','Nurse lead'],['RNs','Nurses'],['RT','RT']];
+
+/* ---------- source line for each key event ---------- */
+EVENTS.forEach(function(e){
+  e.q=e.tl;
+  if(e.who!=='MON'){
+    var best=null;
+    TRANSCRIPT.forEach(function(l){if(l[1]===e.who&&Math.abs(l[0]-e.v)<=6&&(!best||Math.abs(l[0]-e.v)<Math.abs(best[0]-e.v)))best=l;});
+    if(best)e.q=best[2];
+  }
+});
+
+/* ---------- merged feed for the Capture column ---------- */
+var FEED=TRANSCRIPT.map(function(l){return {v:l[0],who:l[1],text:l[2],inf:!!l[3]};});
+EVENTS.forEach(function(e){if(e.who==='MON')FEED.push({v:e.v,who:'MON',text:e.tl,inf:false});});
+FEED.sort(function(a,b){return a.v-b.v;});
+FEED.forEach(function(f,i){
+  var dur=f.who==='MON'?2.5:Math.min(9,Math.max(1.6,f.text.length/15));
+  var nx=FEED[i+1];f.end=Math.min(f.v+dur,nx?nx.v+0.01:1e9);
+});
+
+/* ---------- player abstraction ---------- */
+var mode='init',yt=null,ytReady=false,lv=$('#lv'),vbox=$('#vbox');
+var clock={t:CASE0,playing:false,last:0},rate=1,wantPlay=false,fell=false;
+function toast(msg){var t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on');},3800);}
+function setMode(m,why){
+  mode=m;vbox.classList.remove('local','none','err');
+  if(m==='local')vbox.classList.add('local');
+  if(m==='none')vbox.classList.add('none');
+  $('#vsrcTxt').textContent={yt:'Source: YouTube',local:'Source: local file (videoplayback.mp4)',none:'No video, simulated clock'}[m]||'Loading video…';
+  $$('#vsrc button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-src')===m);});
+  if(why)toast(why);
+}
+function curT(){
+  var t=clock.t;
+  if(mode==='yt'&&ytReady){try{t=yt.getCurrentTime();}catch(e){}}
+  else if(mode==='local')t=lv.currentTime;
+  return Math.max(CASE0,Math.min(END_V,t));
+}
+function isPlaying(){
+  if(mode==='yt'&&ytReady){try{var s=yt.getPlayerState();return s===1||s===3;}catch(e){return false;}}
+  if(mode==='local')return !lv.paused&&!lv.ended;
+  return clock.playing;
+}
+function doSeek(v){
+  v=Math.max(CASE0,Math.min(END_V,v));
+  if(mode==='yt'&&ytReady)try{yt.seekTo(v,true);}catch(e){}
+  else if(mode==='local')lv.currentTime=v;
+  clock.t=v;
+}
+function doPlay(){
+  if(curT()>=END_V-0.3)doSeek(CASE0);
+  wantPlay=true;
+  if(mode==='yt'&&ytReady)try{yt.playVideo();}catch(e){}
+  else if(mode==='local')lv.play().catch(function(){});
+  else{clock.playing=true;}
+}
+function doPause(){
+  wantPlay=false;
+  if(mode==='yt'&&ytReady)try{yt.pauseVideo();}catch(e){}
+  else if(mode==='local')lv.pause();
+  else clock.playing=false;
+}
+function doRate(r){
+  rate=r;
+  if(mode==='yt'&&ytReady)try{yt.setPlaybackRate(r);}catch(e){}
+  else if(mode==='local')lv.playbackRate=r;
+}
+
+function useNone(why){
+  var t=curT();
+  try{if(yt&&ytReady)yt.pauseVideo();}catch(e){}
+  lv.pause();
+  clock.t=t;clock.playing=false;setMode('none',why);
+}
+function useLocal(why,auto){
+  var t=curT();
+  setMode('local',why);
+  var done=false;
+  lv.onloadedmetadata=function(){done=true;lv.currentTime=Math.max(CASE0,t);lv.playbackRate=rate;};
+  lv.onerror=function(){if(!done){useNone(auto?'No video available. Running on a simulated clock.':'Could not load videoplayback.mp4 next to this page.');}};
+  if(!lv.getAttribute('src'))lv.src=LOCAL_SRC;else lv.onloadedmetadata();
+  try{if(yt&&ytReady)yt.pauseVideo();}catch(e){}
+}
+function useYT(auto){
+  var t=curT();
+  lv.pause();
+  if(yt&&ytReady){setMode('yt');try{yt.seekTo(Math.max(CASE0,t),true);yt.setPlaybackRate(rate);}catch(e){}return;}
+  setMode('yt');$('#vsrcTxt').textContent='Loading YouTube…';
+  var failed=false;
+  function fail(msg){if(failed)return;failed=true;if(auto)useLocal(msg+' Using the local copy.',true);else{useNone(msg);}}
+  if(window.YT&&YT.Player){mk();return;}
+  var s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';
+  s.onerror=function(){fail('YouTube could not load.');};
+  window.onYouTubeIframeAPIReady=mk;
+  document.head.appendChild(s);
+  setTimeout(function(){if(!ytReady)fail('YouTube is not responding.');},7000);
+  function mk(){
+    var pv={start:CASE0,end:END_V,controls:0,disablekb:1,modestbranding:1,rel:0,playsinline:1,iv_load_policy:3,fs:0};
+    if(/^https?:/.test(location.protocol))pv.origin=location.origin;
+    yt=new YT.Player('yt',{videoId:VIDEO_ID,width:'100%',height:'100%',playerVars:pv,events:{
+      onReady:function(){ytReady=true;if(mode==='yt'){setMode('yt');if(t>CASE0+1)yt.seekTo(t,true);}},
+      onError:function(e){ytReady=false;fail('YouTube blocked this video here (error '+e.data+').');},
+      onStateChange:function(e){if(e.data===0){doSeekEnd();}}
+    }});
+  }
+}
+function doSeekEnd(){clock.t=END_V;}
+
+/* ---------- state ---------- */
+var activeTab='ehr',lastN=-1,prevRows={},lastIdx=-1,lastCur=0,tPrev=0;
+var W='<span class="wild">***</span>';
+function visCount(v){var n=0;while(n<EVENTS.length&&EVENTS[n].v<=v+1e-6)n++;return n;}
+function compute(n){
+  var s={name:null,age:null,cc:null,arr:null,hpi:[],exam:[],pmh:[],meds:null,vit:[],ord:{},res:{},dx:[],dispo:null,plan:[],course:[],sum:{},team:{},rosc:null,done:false};
+  for(var i=0;i<n;i++)EVENTS[i].f(s,EVENTS[i]);
+  return s;
+}
+var cs=function(who,at){return '<span class="cs">Chorus · '+(WHO[who]?WHO[who].role:who)+' · '+wallOf(at)+'</span>';};
+var pill=function(st){var c={Completed:'ok',Given:'ok',Active:'ok',Running:'ok',Called:'act','In progress':'act',Discontinued:'mute'}[st]||'';return '<span class="pill '+c+'">'+st+'</span>';};
+function esc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+
+function build(s,n,cur,animate){
+  var C={};
+  function R(id,inner,tag,cls){
+    tag=tag||'div';cls=cls||'';C[id]=inner;
+    var fl=animate&&prevRows[id]!==inner;
+    return '<'+tag+' data-id="'+id+'" class="'+cls+(fl?' flash':'')+'">'+inner+'</'+tag+'>';
+  }
+  function kv(id,k,v){return R(id,'<span class="k">'+k+'</span><span class="v">'+v+'</span>','div','kv');}
+  function sect(id,title,sub,body){return '<section class="es" id="es-'+id+'"><h4><span>'+title+'</span><span>'+sub+'</span></h4><div class="eb">'+body+'</div></section>';}
+
+  var ov=kv('cc','Chief complaint',s.cc?esc(s.cc)+cs(s.arr.by,s.arr.at):W)
+    +kv('mode','Arrival mode',s.arr?esc(s.arr.mode)+cs(s.arr.by,s.arr.at):W)
+    +kv('arr','Arrival time',s.arr?DATE+' '+wallOf(CASE0):W)
+    +kv('pmh','Medical history',s.pmh.length?esc(s.pmh.join('; '))+cs('MD',V('lowbp')+95):W)
+    +kv('meds','Medications',s.meds?esc(s.meds)+cs('MD',V('lowbp')+95):W);
+
+  /* flowsheet */
+  var rows=s.vit.slice().reverse().slice(0,9).map(function(r){
+    var f=function(x,flag){return x===null||x===undefined?'—':(flag?'<span class="abn">'+x+'</span>':x);};
+    var sys=r.bp?parseInt(r.bp,10):null;
+    return R('v-'+r.v,'<td>'+wallOf(r.v)+'</td><td>'+f(r.bp,sys&&sys<90)+'</td><td>'+f(r.hr,r.hr&&r.hr>100)+'</td><td>'+f(r.rr,r.rr&&r.rr>20)+'</td><td>'+f(r.spo2,r.spo2&&parseInt(r.spo2,10)<94)+'</td><td>'+f(r.etco2)+'</td><td>'+(r.note?esc(r.note)+' · ':'')+cs(r.src,r.v)+'</td>','tr');
+  }).join('');
+  if(!rows)rows=R('v-none','<td colspan="7" class="none">No vitals recorded yet</td>','tr');
+  var vit='<table class="et vtbl"><thead><tr><th>Time</th><th>BP</th><th>Pulse</th><th>Resp</th><th>SpO2</th><th>EtCO2</th><th>Source</th></tr></thead><tbody>'+rows+'</tbody></table>';
+
+  /* orders */
+  var keys=Object.keys(s.ord).sort(function(a,b){return s.ord[b].at-s.ord[a].at;});
+  var orows=keys.map(function(k){
+    var o=s.ord[k];
+    return R('o-'+k,'<td>'+esc(o.name)+(o.detail?' <small>'+esc(o.detail)+'</small>':'')+cs(o.by,o.at)+(o.doneBy?cs(o.doneBy,o.doneAt):'')+'</td><td>'+o.prio+'</td><td>'+pill(o.status)+'</td><td>'+WHO[o.by].role+'</td><td>'+wallOf(o.at)+(o.doneAt?'<br><small>→ '+wallOf(o.doneAt)+'</small>':'')+'</td>','tr');
+  }).join('');
+  if(!keys.length)orows=R('o-none','<td colspan="5" class="none">No orders placed this encounter</td>','tr');
+  var ord='<table class="et"><thead><tr><th>Order</th><th>Priority</th><th>Status</th><th>Ordered by</th><th>Time</th></tr></thead><tbody>'+orows+'</tbody></table>';
+
+  /* results */
+  var rk=Object.keys(s.res).sort(function(a,b){return s.res[b].at-s.res[a].at;});
+  var rrows=rk.map(function(k){var r=s.res[k];
+    return R('r-'+k+'-'+r.value,'<td>'+esc(r.name)+cs(r.by,r.at)+'</td><td>'+esc(r.value)+'</td><td>'+(r.flag?'<span class="abn">Abnormal</span>':'')+'</td><td>'+wallOf(r.at)+'</td>','tr');}).join('');
+  if(!rk.length)rrows=R('r-none','<td colspan="4" class="none">No results yet. Bedside ultrasound findings will post here.</td>','tr');
+  var res='<table class="et"><thead><tr><th>Bedside ultrasound (RUSH)</th><th>Finding</th><th>Flag</th><th>Time</th></tr></thead><tbody>'+rrows+'</tbody></table>';
+
+  /* ED course */
+  var crow=s.course.slice().reverse().map(function(c){
+    return R('c-'+c.v+'-'+c.text.length,'<td>'+wallOf(c.v)+'</td><td><span class="chip '+(c.who==='MON'?'chipmon':'')+'">'+LAB[c.who]+'</span></td><td>'+esc(c.text)+'</td>','tr');}).join('');
+  if(!crow)crow=R('c-none','<td colspan="3" class="none">Nothing recorded yet</td>','tr');
+  var course='<table class="et cslog"><tbody>'+crow+'</tbody></table>';
+
+  /* provider note */
+  var hpi=s.hpi.length?esc((s.age||'***')+' male presents walk-in with '+s.hpi[0]+'.'):'*** y.o. *** presents with ***.';
+  var note='<div class="note">'
+    +R('n-cc','<b>Chief complaint</b>'+(s.cc?esc(s.cc):W),'p')
+    +R('n-hpi','<b>HPI</b>'+(s.hpi.length?hpi:W+' y.o. '+W+' presents with '+W+'.'),'p')
+    +R('n-pmh','<b>PMH / medications</b>'+(s.pmh.length?esc(s.pmh.join(', '))+'. '+esc(s.meds||''):W),'p')
+    +R('n-exam','<b>Exam</b>'+(s.exam.length?esc(s.exam.join('. '))+'.':W),'p')
+    +R('n-assess','<b>Assessment</b>'+(s.dx.length?esc(s.dx.map(function(d){return d.name;}).join('; ')):W),'p')
+    +R('n-plan','<b>Plan</b>'+(s.plan.length?esc(s.plan.join(' ')):W),'p')
+    +'<div class="draft"><span>Draft composed from team audio. Pending attending review and signature.</span><button class="signbtn" disabled>Sign note</button></div></div>';
+
+  /* dx + dispo */
+  var drows=s.dx.map(function(d,i){return R('dx-'+d.code,'<td>'+esc(d.name)+cs(d.by,d.at)+'</td><td>'+d.code+'</td><td>'+d.type+'</td>','tr');}).join('');
+  if(!drows)drows=R('dx-none','<td colspan="3">'+W+'</td>','tr');
+  var dx='<table class="et"><thead><tr><th>ED diagnosis</th><th>ICD-10</th><th>Type</th></tr></thead><tbody>'+drows+'</tbody></table>'
+    +kv('dp-to','Disposition',s.dispo?esc(s.dispo.to)+cs(s.dispo.by,s.dispo.at):W)
+    +kv('dp-st','Status',s.dispo?pill('Called').replace('Called',esc(s.dispo.status)):W);
+
+  var body=(s.done?R('done','Case ended. The chart, summary and risk review are drafted for clinician sign-off.','div','donebar'):'')
+    +sect('cc','Chief complaint and history','ED Triage',ov)
+    +sect('vit','Vitals','Flowsheet',vit)
+    +sect('ord','Orders','Active this encounter',ord)
+    +sect('res','Results','Result review',res)
+    +sect('course','ED course','Timeline',course)
+    +sect('note','ED Provider Note','Draft',note)
+    +sect('dx','Diagnosis and disposition','ED Disposition',dx);
+
+  /* banner */
+  var team=TEAMROW.map(function(r){return '<span><b>'+r[1]+':</b> '+(s.team[r[0]]?esc(s.team[r[0]]):W)+'</span>';}).join('');
+  var banner='<div class="pt-name">'+(s.name?'TOM, '+W:W+', '+W)+'<small>Synthetic scenario</small></div>'
+    +'<div class="pt-meta"><span><b>'+(s.age||'***')+'</b> '+(s.age?'Male':W)+'</span><span>DOB '+W+'</span><span>MRN '+W+'</span><span>CSN '+W+'</span><span>Loc <b>'+(cur>=72?'ED TRAUMA':'***')+'</b></span><span>Wt '+W+'</span></div>'
+    +'<div class="pt-flags"><span class="fl">Allergies '+W+'</span><span class="fl">Code status '+W+'</span></div>'
+    +'<div class="team">'+team+'</div>';
+
+  /* summary */
+  var ks='abcdefghijk'.split('').filter(function(k){return s.sum[k];});
+  var sumTxt=ks.length?ks.map(function(k){return R('sum-'+k,esc(s.sum[k]),'span','sent');}).join(' '):'<span class="empty">The summary writes itself as the case unfolds.</span>';
+  var moments=EVENTS.slice(0,n).filter(function(e){return e.major;}).map(function(e){return R('mo-'+e.v,'<b>'+cm(e.v)+'</b>'+esc(e.tl.split(':')[0].replace(/^(Orders|Decides on)\s*/,'')),'span','');}).join('');
+  var seen={};FEED.forEach(function(f){if(f.v<=cur+1e-6)seen[f.who]=1;});
+  var who=['TRI','ATT','MD','RN','RT'].filter(function(k){return seen[k];}).map(function(k){return R('who-'+k,NAMES[k],'span','p');}).join('');
+  var sum='<div class="sumcard">'+sumTxt+'</div>'
+    +(moments?'<div class="mom">'+moments+'</div>':'')
+    +(who?'<div class="who">Contributors '+who+'</div>':'');
+
+  return {body:body,banner:banner,sum:sum,cur:C};
+}
+
+/* ---------- timeline + pipeline ---------- */
+var TL=EVENTS.filter(function(e){return !e.quiet;});
+function buildTimeline(){
+  $('#timeline').innerHTML=TL.map(function(e,i){
+    var mon=e.who==='MON';
+    return '<li class="hid'+(e.major?' major':'')+(e.inferred?' inf':'')+'" data-i="'+i+'" data-v="'+e.v+'"><span class="t">'+cm(e.v)+'</span><span><b class="by">'+NAMES[e.who]+':</b> '+esc(e.tl)+'</span></li>';
+  }).join('')+'<li class="emptyli"><span></span><span class="empty">The timeline fills as people speak and monitors report.</span></li>';
+}
+function renderPipe(n,animate){
+  var box=$('#pipe');
+  if(n===0){box.className='pipe still';box.innerHTML='<h3>How one line becomes data</h3><p class="empty">Each line is heard, transcribed, then turned into chart fields.</p>';return;}
+  var e=EVENTS[n-1],mon=e.who==='MON';
+  var bars='';for(var i=0;i<18;i++)bars+='<i style="--d:'+((i*53)%400)+'ms;--h:'+(30+((i*37)%65))+'%"></i>';
+  var chips=e.ex.map(function(x){return '<span class="dchip"><b>'+x[0]+'</b>'+esc(x[1])+'</span>';}).join('');
+  box.className='pipe '+(animate?'run':'still');
+  box.innerHTML='<h3>How the latest line became data</h3>'
+    +'<div class="ps s1"><span class="pl">'+(mon?'Received':'Heard')+'</span><div class="wave">'+bars+'<span class="pwho">'+WHO[e.who].dev+(e.inferred?' (speaker inferred)':'')+'</span></div></div>'
+    +'<div class="ps s2"><span class="pl">Transcribed</span><p class="pq">'+(mon?esc(e.q):'“'+esc(e.q)+'”')+'</p></div>'
+    +'<div class="ps s3"><span class="pl">Written to chart</span><div class="chips">'+chips+'</div></div>';
+}
+
+function renderAll(n,cur,animate){
+  var s=compute(n),b=build(s,n,cur,animate);
+  $('#banner').innerHTML=b.banner;
+  var sc=$('#escroll'),keep=sc.scrollTop;
+  $('#ehrBody').innerHTML=b.body;
+  $('#sumBody').innerHTML=b.sum;
+  prevRows=b.cur;
+  renderPipe(n,animate);
+  if(animate){
+    sc.scrollTop=keep;
+    if(activeTab==='ehr'){var f=$('#ehrBody .flash');if(f)f.scrollIntoView({block:'nearest',behavior:'smooth'});}
+    var ev=EVENTS[n-1];
+    if(activeTab!=='sum')$('[data-tab="sum"]').classList.add('new');
+    if(ev&&ev.major&&activeTab!=='learn')$('[data-tab="learn"]').classList.add('new');
+  }else sc.scrollTop=0;
+  /* timeline visibility */
+  var vis=0;
+  $$('#timeline li[data-i]').forEach(function(li){
+    var on=parseFloat(li.getAttribute('data-v'))<=cur+1e-6;
+    li.classList.toggle('hid',!on);li.classList.remove('cur');if(on)vis++;
+  });
+  var last=$$('#timeline li[data-i]:not(.hid)').pop();if(last)last.classList.add('cur');
+  $('#timeline .emptyli').style.display=vis?'none':'';
+  $('#lscroll').scrollTop=1e6;
+}
+
+/* ---------- capture column ---------- */
+function buildFeed(){
+  $('#transcript').innerHTML=FEED.map(function(f,i){
+    var mon=f.who==='MON';
+    return '<div class="line hid'+(mon?' mon':'')+'" data-i="'+i+'" data-v="'+f.v+'"><span class="t">'+cm(f.v)+'</span><span class="chip'+(mon?' chipmon':'')+(f.who==='PT'?' pt':'')+(f.inf?' inf':'')+'">'+LAB[f.who]+'</span><p>'+(mon?esc(f.text):'“'+esc(f.text)+'”')+'</p></div>';
+  }).join('')+'<p class="empty" id="emptyT">Waiting for the first line. Press play.</p>';
+}
+var lineEls=null;
+function updateFeed(cur,jump){
+  var idx=0;while(idx<FEED.length&&FEED[idx].v<=cur+1e-6)idx++;
+  if(idx!==lastIdx){
+    var lo=Math.min(idx,Math.max(lastIdx,0)),hi=Math.max(idx,Math.max(lastIdx,0));
+    if(lastIdx<0){lo=0;hi=FEED.length;}
+    for(var i=lo;i<hi;i++)lineEls[i].classList.toggle('hid',i>=idx);
+    if(lastIdx>=0&&lastIdx-1>=0&&lineEls[lastIdx-1])lineEls[lastIdx-1].classList.remove('now');
+    if(idx>0)lineEls[idx-1].classList.add('now');
+    lastIdx=idx;
+    $('#emptyT').style.display=idx?'none':'';
+    var sc=$('#tscroll');sc.style.scrollBehavior=jump?'auto':'smooth';sc.scrollTop=1e6;
+  }
+  /* lanes: lit while a line's estimated speaking time is active */
+  var on={};
+  for(var j=Math.max(0,idx-4);j<idx;j++){var f=FEED[j];if(cur<f.end)on[f.who]=1;}
+  $$('.lane').forEach(function(l){l.classList.toggle('on',!!on[l.getAttribute('data-who')]);});
+}
+
+/* ---------- risk tab ---------- */
+var INTS=[
+  ['Triage vitals → diagnosis named','lowbp','dx'],
+  ['RUSH ordered → RUSH complete','rushCall','rushDone'],
+  ['Pads placed → pulse lost','pads','arrest'],
+  ['Pulse lost → epinephrine 1 mg ordered','arrest','epiOrder'],
+  ['TNK decision → TNK given','tnkDecision','tnkGiven'],
+  ['Pharmacy called → TNK at bedside','tnkPharm','tnkArr'],
+  ['Pulse lost → return of circulation','arrest','rosc']
+];
+var FLAGS=[
+  ['vul','Low BP for '+short('lowbp','levoRun')+' before a vasopressor was running','levoRun'],
+  ['str','Cause of shock named '+short('lowbp','dx')+' after triage vitals, using bedside ultrasound','dx'],
+  ['str','Pads were on '+short('pads','arrest')+' before the pulse was lost','arrest'],
+  ['str','Epinephrine ordered '+short('arrest','epiOrder')+' after pulse loss; CPR started at once','epiOrder'],
+  ['vul','TNK took '+short('tnkDecision','tnkGiven')+' from decision to dose; pharmacy was called '+short('tnkDecision','tnkPharm')+' after the decision','tnkGiven'],
+  ['nxt','Pre-alert pharmacy when a massive PE is suspected, before the decision','tnkGiven'],
+  ['str','Circulation returned '+short('arrest','rosc')+' after pulse loss','rosc']
+];
+var ivBuilt=false;
+function buildIvs(){
+  $('#ivs').innerHTML=INTS.map(function(r,i){return '<div class="iv wait" id="iv'+i+'"><span>'+r[0]+'</span><b>—</b></div>';}).join('');
+  ivBuilt=true;
+}
+var lastFlagN=-1;
+function updateRisk(cur,n){
+  var a=V('lowbp'),b=V('levoRun');
+  var el=cur<a?0:Math.min(cur,b)-a;
+  var done=cur>=b,run=cur>=a&&!done;
+  $('#big').textContent=mmss(el);
+  $('#big').classList.toggle('over',run);
+  $('#bar').classList.toggle('over',run);
+  $('#fill').style.width=Math.min(100,el/450*100)+'%';
+  $('#bsub').textContent=cur<a?'Clock starts at the first low BP reading':(run?'BP low, no vasopressor running yet':'Norepinephrine running at '+cm(b));
+  $('#bsub').classList.toggle('over',run);
+  INTS.forEach(function(r,i){
+    var s0=V(r[1]),s1=V(r[2]),e=document.getElementById('iv'+i);
+    var st=cur>=s0,fin=cur>=s1;
+    e.className='iv'+(fin?'':(st?' run':' wait'));
+    e.lastChild.textContent=fin?mmss(s1-s0).replace(/^0/,''):(st?mmss(cur-s0).replace(/^0/,''):'—');
+  });
+  if(n!==lastFlagN){
+    lastFlagN=n;
+    var h=FLAGS.filter(function(f){return cur>=V(f[2]);}).map(function(f){
+      var lab={vul:'Vulnerability',str:'Strength',nxt:'Next time'}[f[0]];
+      return '<div class="flag"><span class="badge '+f[0]+'">'+lab+'</span><p>'+f[1]+'</p></div>';}).join('');
+    $('#flags').innerHTML=h||'<p class="empty">Flags appear as the case unfolds.</p>';
+  }
+}
+
+/* ---------- per-frame ---------- */
+var PLAYSVG='<svg viewBox="0 0 18 18"><path d="M4 2l12 7-12 7z"/></svg>',PAUSESVG='<svg viewBox="0 0 18 18"><rect x="3" y="2" width="4" height="14"/><rect x="11" y="2" width="4" height="14"/></svg>';
+var lastPlaying=null,lastClk='';
+function frame(ts){
+  var dt=Math.min(0.1,(ts-(clock.last||ts))/1000);clock.last=ts;
+  if(mode==='none'||mode==='init'){
+    if(clock.playing){clock.t+=dt*rate;if(clock.t>=END_V){clock.t=END_V;clock.playing=false;}}
+  }
+  var cur=curT();
+  /* enforce the clip window */
+  if(mode==='local'&&(lv.currentTime>=END_V||lv.ended)){lv.pause();lv.currentTime=END_V;}
+  if(mode==='local'&&lv.currentTime<CASE0-0.3&&!lv.seeking)lv.currentTime=CASE0;
+  var n=visCount(cur);
+  var jump=Math.abs(cur-lastCur)>3||cur<lastCur;
+  if(n!==lastN){
+    var animate=lastN>=0&&n-lastN===1&&!jump&&isPlaying();
+    lastN=n;renderAll(n,cur,animate);
+  }
+  updateFeed(cur,jump);
+  lastCur=cur;
+  var c=cm(cur);
+  if(c!==lastClk){lastClk=c;$('#clk').textContent=c;$('#wall').textContent=wallOf(cur);}
+  var sc=$('#scrub');if(document.activeElement!==sc||true){sc.value=cur-CASE0;}
+  sc.style.setProperty('--p',((cur-CASE0)/CASE_LEN*100)+'%');
+  var pl=isPlaying();
+  if(pl!==lastPlaying){lastPlaying=pl;$('#play').innerHTML=pl?PAUSESVG:PLAYSVG;$('#play').setAttribute('aria-label',pl?'Pause':'Play');}
+  updateRisk(cur,n);
+  var fin=cur>=END_V-0.3&&!pl;
+  var st=$('#status');st.classList.toggle('done',fin);
+  st.textContent=fin?'Record complete. No clinician typed a thing.':'Space play · arrows jump between events · 1 2 3 tabs';
+  requestAnimationFrame(frame);
+}
+
+/* ---------- controls ---------- */
+function toggle(){isPlaying()?doPause():doPlay();}
+function stepEv(dir){
+  var cur=curT();
+  if(dir>0){for(var i=0;i<TL.length;i++){if(TL[i].v>cur+0.5){doSeek(TL[i].v+0.05);return;}}doSeek(END_V);}
+  else{for(var j=TL.length-1;j>=0;j--){if(TL[j].v<cur-1.2){doSeek(TL[j].v+0.05);return;}}doSeek(CASE0);}
+}
+function setTab(name){
+  activeTab=name;
+  $$('.tab').forEach(function(b){var on=b.getAttribute('data-tab')===name;b.classList.toggle('on',on);if(on)b.classList.remove('new');});
+  $$('.pane').forEach(function(p){p.classList.toggle('on',p.id==='p-'+name);});
+}
+$('#play').addEventListener('click',toggle);
+$('#restart').addEventListener('click',function(){doPause();doSeek(CASE0);lastN=-1;lastIdx=-1;});
+$('#scrub').addEventListener('input',function(e){doSeek(CASE0+parseFloat(e.target.value));});
+$('#speed').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  doRate(parseFloat(b.getAttribute('data-s')));
+  $$('#speed button').forEach(function(x){x.classList.toggle('on',x===b);});
+});
+$('#vsrc').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;var s=b.getAttribute('data-src');
+  doPause();
+  if(s==='yt')useYT(false);else if(s==='local')useLocal(null,false);else useNone();
+});
+$('#transcript').addEventListener('click',function(e){
+  var l=e.target.closest('.line');if(!l)return;doSeek(parseFloat(l.getAttribute('data-v'))-0.05);
+});
+$('#timeline').addEventListener('click',function(e){
+  var l=e.target.closest('li[data-v]');if(!l)return;doSeek(parseFloat(l.getAttribute('data-v'))-0.05);
+});
+$$('.tab').forEach(function(b){b.addEventListener('click',function(){setTab(b.getAttribute('data-tab'));});});
+$('#csTog').addEventListener('change',function(e){$('#ehrwin').classList.toggle('hide-cs',!e.target.checked);});
+$('#enav').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  var x=document.getElementById(b.getAttribute('data-go'));
+  if(x)$('#escroll').scrollTo({top:x.offsetTop-10,behavior:'smooth'});
+});
+document.addEventListener('keydown',function(e){
+  var tag=(e.target.tagName||'').toLowerCase();
+  if(e.key===' '&&tag!=='button'&&tag!=='input'){e.preventDefault();toggle();}
+  else if(e.key==='ArrowRight'&&tag!=='input'){e.preventDefault();stepEv(1);}
+  else if(e.key==='ArrowLeft'&&tag!=='input'){e.preventDefault();stepEv(-1);}
+  else if(e.key==='1')setTab('ehr');
+  else if(e.key==='2')setTab('sum');
+  else if(e.key==='3')setTab('learn');
+});
+
+/* ---------- init ---------- */
+$('#lanes').innerHTML=['TRI','ATT','MD','RN','RT','PT','MON'].map(function(k){
+  return '<div class="lane'+(k==='MON'?' mon':'')+'" data-who="'+k+'"><span class="dot">'+LAB[k]+'</span>'+(k==='MON'?'Monitors + events':WHO[k].lane)+'</div>';
+}).join('');
+var MAJ=EVENTS.filter(function(e){return e.major;});
+$('#scrub').max=CASE_LEN;
+$('#ticks').innerHTML=MAJ.map(function(e){
+  return '<button style="left:calc(8px + (100% - 16px) * '+((e.v-CASE0)/CASE_LEN)+')" title="'+cm(e.v)+' '+esc(e.tl)+'" data-v="'+e.v+'" aria-label="Jump to '+cm(e.v)+'"></button>';
+}).join('');
+$('#ticks').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;doSeek(parseFloat(b.getAttribute('data-v'))+0.05);});
+buildFeed();lineEls=$$('#transcript .line');
+buildTimeline();buildIvs();
+requestAnimationFrame(frame);
+var q=(location.search.match(/src=(yt|local|none)/)||[])[1];
+if(q==='local')useLocal(null,false);else if(q==='none')useNone();else useYT(true);
+window.__chorus={seek:doSeek,play:doPlay,pause:doPause,setTab:setTab,get t(){return curT();},get mode(){return mode;},useNone:useNone,useLocal:useLocal};
+})();
+
+</script>
+</body>
+</html>
